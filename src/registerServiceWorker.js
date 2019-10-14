@@ -39,6 +39,60 @@ export default function register() {
         // This is running on localhost. Lets check if a service worker still exists or not.
         checkValidServiceWorker(swUrl);
       }
+    })
+
+
+    var PRECACHE = 'precache-v1';
+    var RUNTIME = 'runtime';
+    
+    // list the files you want cached by the service worker
+    const PRECACHE_URLS = [
+      '/public/index.html',
+      './',
+      'index.css',
+      'App.js'
+    ];
+    
+    
+    // the rest below handles the installing and caching
+    window.addEventListener('install', event => {
+      event.waitUntil(
+         caches.open(PRECACHE).then(cache => cache.addAll(PRECACHE_URLS)).then(window.skipWaiting())
+      );
+    });
+    
+    window.addEventListener('activate', event => {
+      const currentCaches = [PRECACHE, RUNTIME];
+      event.waitUntil(
+        caches.keys().then(cacheNames => {
+          return cacheNames.filter(cacheName => !currentCaches.includes(cacheName));
+        }).then(cachesToDelete => {
+          return Promise.all(cachesToDelete.map(cacheToDelete => {
+            return caches.delete(cacheToDelete);
+          }));
+        }).then(() => window.clients.claim())
+      );
+    });
+    
+    window.addEventListener('fetch', event => {
+      if (event.request.url.startsWith(window.location.origin)) {
+        event.respondWith(
+          caches.match(event.request).then(cachedResponse => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+    
+            return caches.open(RUNTIME).then(cache => {
+              return fetch(event.request).then(response => {
+                // Put a copy of the response in the runtime cache.
+                return cache.put(event.request, response.clone()).then(() => {
+                  return response;
+                });
+              });
+            });
+          })
+        );
+      }
     });
   }
 }
